@@ -20,12 +20,12 @@ cp .env.example .env
 
 | Variable       | Description                                       |
 | -------------- | -------------------------------------------------- |
-| `DATABASE_URL` | `postgresql://user:password@localhost:5432/eduatlas` |
+| `DATABASE_URL` | Defaults to `sqlite:///./eduatlas.db` — no install needed. Swap to `postgresql://user:password@localhost:5432/eduatlas` for a production-style setup. |
 | `GROQ_API_KEY` | Your Groq API key from console.groq.com             |
 
 ## Run Locally
 
-**Prerequisites:** Python 3.11+, PostgreSQL running locally.
+**Prerequisites:** Python 3.11+. No database server needed — SQLite is a local file, created automatically.
 
 ```
 # 1. Create and activate a virtual environment
@@ -36,18 +36,26 @@ source venv/bin/activate     # macOS/Linux
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Create the database (SQLAlchemy creates tables automatically)
-createdb eduatlas
-
-# 4. Start the API
+# 3. Start the API (eduatlas.db is created automatically on first run)
 uvicorn main:app --reload
 
-# 5. (Optional) Populate sample data for a demo
+# 4. (Optional) Populate sample data for a demo
 python seed_data.py
 ```
 
 API: `http://localhost:8000`
 Swagger UI: `http://localhost:8000/docs`
+
+### Switching to PostgreSQL
+
+For a production-style setup, uncomment the `postgresql://` line in `.env` and comment out the SQLite line, then:
+
+```
+pip install psycopg2-binary
+createdb eduatlas
+```
+
+The app detects the driver from `DATABASE_URL` automatically — no code changes needed.
 
 ### Key Libraries
 
@@ -55,11 +63,11 @@ Swagger UI: `http://localhost:8000/docs`
 | ------------------------------- | ------------------------------------ |
 | `fastapi`                       | REST API framework                  |
 | `uvicorn`                       | Server that runs FastAPI            |
-| `sqlalchemy`                    | ORM for PostgreSQL                  |
-| `psycopg2-binary`               | PostgreSQL driver                   |
+| `sqlalchemy`                    | ORM — works with SQLite out of the box, Postgres with the extra driver below |
 | `pydantic`                      | Request/response validation         |
 | `langchain` + `langchain-groq`  | LLM chain framework + Groq provider  |
 | `python-dotenv`                 | Loads `.env` variables              |
+| `psycopg2-binary` *(optional)*  | Only needed if you switch `DATABASE_URL` to PostgreSQL |
 
 ---
 
@@ -114,6 +122,7 @@ reference `source`, `first_seen`, or `track` as separate fields:
 - **Feedback loop** — on validation failure, the error is injected back into the prompt and retried up to 3 times before returning a 500.
 - **Hallucination guard** — `/report` and `/search` are grounded in real DB data. The LLM never invents student or certificate records.
 - **Flexible metadata** — variable fields (source, track, priority, issuer, expiry) live in one JSON column instead of being pre-defined as rigid columns, so the schema doesn't need a migration every time a new record type needs a new field.
+- **SQLite by default** — zero-install local dev/demo experience; `DATABASE_URL` swaps to PostgreSQL for production with no code changes (the engine auto-detects the driver and sets `check_same_thread` only for SQLite).
 
 ## What I'd Do Next
 
